@@ -1,0 +1,26 @@
+.App {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.app-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #f5f7fa;
+}
+
+.placeholder-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 32px;
+    color: #999;
+}
