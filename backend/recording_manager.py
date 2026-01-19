@@ -6,6 +6,7 @@
 - 記錄遊戲事件時間軸
 - 檔案結構化儲存
 - 預留回放分析接口
+- 自動同步至資料庫
 """
 
 import os
@@ -16,6 +17,9 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, asdict
 import threading
+
+# 導入資料庫
+from database import Database
 
 
 @dataclass
@@ -38,15 +42,19 @@ class RecordingMetadata:
 class RecordingManager:
     """遊戲錄影管理器"""
     
-    def __init__(self, recordings_dir: str = "./recordings"):
+    def __init__(self, recordings_dir: str = "./recordings", db_path: str = "./data/recordings.db"):
         """
         初始化錄影管理器
         
         Args:
             recordings_dir: 錄影檔案儲存目錄
+            db_path: 資料庫路徑
         """
         self.recordings_dir = recordings_dir
         os.makedirs(recordings_dir, exist_ok=True)
+        
+        # 初始化資料庫連接
+        self.db = Database(db_path)
         
         self.current_recording: Optional[Dict[str, Any]] = None
         self.video_writer: Optional[cv2.VideoWriter] = None
@@ -87,9 +95,9 @@ class RecordingManager:
             recording_dir = os.path.join(self.recordings_dir, game_id)
             os.makedirs(recording_dir, exist_ok=True)
             
-            # 初始化影片寫入
-            video_path = os.path.join(recording_dir, "video.mjpg")
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            # 初始化影片寫入（使用 mp4v 格式，兼容性更好）
+            video_path = os.path.join(recording_dir, "video.mp4")
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 使用 mp4v 編碼（廣泛支援）
             self.video_writer = cv2.VideoWriter(
                 video_path, fourcc, fps, resolution
             )
@@ -224,11 +232,27 @@ class RecordingManager:
             
             # 計算檔案大小
             video_path = os.path.join(
-                self.current_recording["recording_dir"], "video.mjpg"
+                self.current_recording["recording_dir"], "video.mp4"
             )
             if os.path.exists(video_path):
                 file_size_bytes = os.path.getsize(video_path)
                 metadata.file_size_mb = file_size_bytes / (1024 * 1024)
+                
+                # 生成縮圖（提取第一幀）
+                try:
+                    cap = cv2.VideoCapture(video_path)
+                    ret, frame = cap.read()
+                    if ret:
+                        thumbnail_path = os.path.join(
+                            self.current_recording["recording_dir"], "thumbnail.jpg"
+                        )
+                        # 調整大小為 640x360 以節省空間
+                        thumbnail = cv2.resize(frame, (640, 360))
+                        cv2.imwrite(thumbnail_path, thumbnail, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                        print(f"[Recording] Thumbnail generated: {thumbnail_path}")
+                    cap.release()
+                except Exception as e:
+                    print(f"[Recording] Thumbnail generation error: {e}")
             
             # 保存元資料
             metadata_path = os.path.join(
@@ -236,6 +260,36 @@ class RecordingManager:
             )
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(asdict(metadata), f, indent=2, ensure_ascii=False)
+            
+            #  同步至資料庫
+            try:
+                video_path = os.path.join(
+                    self.current_recording["recording_dir"], "video.mp4"
+                )
+                
+                # 準備資料庫記錄
+                recording_data = {
+                    "game_id": metadata.game_id,
+                    "game_type": metadata.game_type,
+                    "start_time": metadata.start_time,
+                    "end_time": metadata.end_time,
+                    "duration_seconds": metadata.duration_seconds,
+                    "player1_name": metadata.players[0] if metadata.players and len(metadata.players) > 0 else None,
+                    "player2_name": metadata.players[1] if metadata.players and len(metadata.players) > 1 else None,
+                    "winner": metadata.winner,
+                    "player1_score": metadata.final_score[0] if metadata.final_score and len(metadata.final_score) > 0 else 0,
+                    "player2_score": metadata.final_score[1] if metadata.final_score and len(metadata.final_score) > 1 else 0,
+                    "target_rounds": metadata.total_rounds,
+                    "video_path": video_path,
+                    "video_resolution": metadata.video_resolution,
+                    "video_fps": metadata.video_fps,
+                    "file_size_mb": metadata.file_size_mb
+                }
+                
+                self.db.insert_recording(recording_data)
+                print(f"[Recording] Synced to database: {metadata.game_id}")
+            except Exception as e:
+                print(f"[Recording] Database sync error: {e}")
             
             result = {
                 "game_id": self.current_recording["game_id"],

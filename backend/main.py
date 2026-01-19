@@ -45,6 +45,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 註冊 API 路由
+from api.replay_api import router as replay_router
+app.include_router(replay_router)
+
+from api.thumbnail_api import router as thumbnail_router
+app.include_router(thumbnail_router)
+
 # 載入追蹤引擎
 tracker: Optional[PoolTracker] = None
 try:
@@ -433,6 +440,15 @@ def camera_capture_loop():
                     mjpeg_manager.update_projector(projector_frame)
                 except Exception as e:
                     print(f"⚠️ MJPEG frame update error: {e}")
+            
+            # ✅ 錄影功能：寫入幀到錄影檔
+            if recording_manager.is_recording:
+                try:
+                    # 使用監控流的尺寸 (1280x720) 進行錄影
+                    recording_frame = cv2.resize(display_frame, (1280, 720))
+                    recording_manager.write_frame(recording_frame)
+                except Exception as e:
+                    print(f"⚠️ Recording frame write error: {e}")
 
             # ✅ 優化 3: 效能監控與智能幀率控制
             frame_time = time.time() - frame_start

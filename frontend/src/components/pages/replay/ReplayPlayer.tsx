@@ -102,12 +102,11 @@ const ReplayPlayer: React.FC<ReplayPlayerProps> = ({ gameId, onBack }) => {
             </div>
 
             <div className="player-content">
-                {/* 影片播放區 */}
                 <div className="video-section">
                     <video
                         className="video-player"
                         controls
-                        src={`/replay/burnin/${gameId}.mp4`}
+                        src={`/api/recordings/${gameId}/video`}
                     >
                         您的瀏覽器不支援影片播放
                     </video>

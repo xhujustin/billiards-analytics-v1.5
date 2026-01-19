@@ -1,0 +1,20 @@
+{
+  "game_id": "game_20260119_223939",
+  "game_type": "nine_ball",
+  "start_time": "2026-01-19T22:39:39.347744",
+  "end_time": "2026-01-19T22:39:44.594583",
+  "duration_seconds": 5.246838808059692,
+  "players": [
+    "xxx",
+    "玩家2"
+  ],
+  "final_score": [
+    1,
+    1
+  ],
+  "winner": "xxx",
+  "total_rounds": 2,
+  "video_resolution": "1280x720",
+  "video_fps": 30,
+  "file_size_mb": 0.8530244827270508
+}

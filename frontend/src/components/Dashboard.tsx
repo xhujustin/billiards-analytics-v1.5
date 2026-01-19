@@ -9,8 +9,6 @@ import { Layout } from './Layout';
 import { TopBar } from './TopBar';
 import { Sidebar, type PageType } from './Sidebar';
 import { StreamPage } from './pages/StreamPage';
-import { SessionPage } from './pages/SessionPage';
-import { MetadataPage } from './pages/MetadataPage';
 import { SettingsPage } from './pages/SettingsPage';
 import PracticePage from './pages/PracticePage';
 import GamePage from './pages/GamePage';
@@ -167,12 +165,8 @@ export const Dashboard: React.FC = () => {
             isConnected={isConnected}
           />
         );
-      case 'session':
-        return <SessionPage session={session} />;
-      case 'metadata':
-        return <MetadataPage metadata={metadata} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage session={session} metadata={metadata} />;
       default:
         return <StreamPage burninUrl={burninUrl} isAnalyzing={isAnalyzing} health={health} metadata={metadata} isConnected={isConnected} />;
     }

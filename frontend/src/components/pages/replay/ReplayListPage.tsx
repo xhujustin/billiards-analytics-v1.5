@@ -142,9 +142,15 @@ const ReplayListPage: React.FC<ReplayListPageProps> = ({ mode, onBack, onPlayRec
                     {filteredRecordings.map((recording) => (
                         <div key={recording.game_id} className="recording-card">
                             <div className="recording-thumbnail">
-                                <div className="thumbnail-placeholder">
-                                    {recording.video_resolution || '1280x720'}
-                                </div>
+                                <img
+                                    src={`/api/recordings/${recording.game_id}/thumbnail`}
+                                    alt="錄影縮圖"
+                                    onError={(e) => {
+                                        // 如果縮圖加載失敗，顯示佔位符
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="thumbnail-placeholder">1280x720</div>';
+                                    }}
+                                />
                             </div>
 
                             <div className="recording-info">

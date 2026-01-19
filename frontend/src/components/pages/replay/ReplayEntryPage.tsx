@@ -65,7 +65,7 @@ const ReplayEntryPage: React.FC<ReplayEntryPageProps> = ({ onNavigate }) => {
                 {/* 遊玩模式回放 */}
                 <EntryCard
                     title="遊玩模式"
-                    description="查看 9 球對戰的錄影回放"
+                    description="查看 8、9、10、司諾克 的錄影回放"
                     onClick={() => handleNavigate('game')}
                 />
 

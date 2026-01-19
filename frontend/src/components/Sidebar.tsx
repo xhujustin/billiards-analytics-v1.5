@@ -1,12 +1,13 @@
 /**
  * Sidebar Component - 側邊欄選單
  * 提供頁面導航
+ * v1.5 移除 Session 和 Metadata 選單（已整合到設定頁面）
  */
 
 import React from 'react';
 import './Sidebar.css';
 
-export type PageType = 'practice' | 'game' | 'stream' | 'session' | 'metadata' | 'settings' | 'replay';
+export type PageType = 'practice' | 'game' | 'stream' | 'settings' | 'replay';
 
 interface SidebarProps {
   currentPage: PageType;
@@ -24,8 +25,6 @@ const menuItems: MenuItem[] = [
   { id: 'replay', icon: '', label: '回放功能' },
   { id: 'practice', icon: '', label: '練習模式' },
   { id: 'game', icon: '', label: '遊玩模式' },
-  { id: 'session', icon: '', label: 'Session' },
-  { id: 'metadata', icon: '', label: 'Metadata' },
   { id: 'settings', icon: '', label: '設定' },
 ];
 

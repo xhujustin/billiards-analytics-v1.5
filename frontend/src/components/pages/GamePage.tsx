@@ -428,7 +428,8 @@ export default function GamePage({ onNavigate }: GamePageProps) {
         return (
             <div className="game-page">
                 <div className="setup-header">
-                    <h2>  新遊戲設定</h2>
+                    <h1>遊玩模式</h1>
+                    <p>新遊戲設定</p>
                 </div>
 
                 <div className="game-setup">

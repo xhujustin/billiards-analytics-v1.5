@@ -82,8 +82,8 @@ export default function PracticePage({ onNavigate }: PracticePageProps) {
         return (
             <div className="practice-page">
                 <div className="practice-header">
-                    <h1>  練習模式選單</h1>
-                    <p className="header-subtitle">選擇練習類型,提升撞球技巧</p>
+                    <h1>練習模式</h1>
+                    <p>選擇練習類型，提升撞球技巧</p>
                 </div>
 
                 <div className="practice-menu">

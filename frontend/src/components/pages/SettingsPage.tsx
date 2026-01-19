@@ -1,8 +1,10 @@
 /**
  * SettingsPage Component - 系統設定頁面
+ * v1.5 整合 Session 和 Metadata 資訊
  */
 
 import React, { useState, useEffect } from 'react';
+import type { Session, MetadataUpdatePayload } from '../../sdk/types';
 import './SettingsPage.css';
 
 interface ColorPreset {
@@ -17,7 +19,12 @@ interface TableColorsResponse {
   presets: Record<string, ColorPreset>;
 }
 
-export const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  session?: Session | null;
+  metadata?: MetadataUpdatePayload | null;
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({ session, metadata }) => {
   const [tableColors, setTableColors] = useState<TableColorsResponse | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('green');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -208,8 +215,158 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Session 資訊 */}
+      {session && (
+        <div className="card">
+          <h3 className="card-title">Session 資訊</h3>
+          <div className="settings-content">
+            <div className="session-details">
+              <div className="detail-row">
+                <span className="detail-label">Session ID:</span>
+                <code className="detail-value">{session.session_id}</code>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Stream ID:</span>
+                <code className="detail-value">{session.stream_id}</code>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Role:</span>
+                <code className="detail-value">{session.role}</code>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">狀態:</span>
+                <span className="detail-value status-active">🟢 Active</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">過期時間:</span>
+                <span className="detail-value">
+                  {new Date(session.expires_at).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* 權限資訊 */}
+            {session.permission_flags && session.permission_flags.length > 0 && (
+              <div className="permission-section">
+                <p className="setting-desc">權限列表:</p>
+                <div className="permissions">
+                  {session.permission_flags.map((permission) => (
+                    <div key={permission} className="permission-item">
+                      <span className="permission-icon">✓</span>
+                      <span className="permission-name">{permission}</span>
+                      <span className="permission-desc">
+                        {getPermissionDescription(permission)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="session-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (session?.session_id) {
+                    navigator.clipboard.writeText(session.session_id);
+                    alert('Session ID 已複製到剪貼簿');
+                  }
+                }}
+              >
+                複製 Session ID
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Metadata 即時監控 */}
+      {metadata && (
+        <div className="card">
+          <h3 className="card-title">即時數據監控 (Metadata)</h3>
+          <div className="settings-content">
+            {/* 基本指標 */}
+            <div className="metrics">
+              <div className="metric-row">
+                <span className="metric-label">Frame ID:</span>
+                <span className="metric-value">{metadata.frame_id}</span>
+              </div>
+              <div className="metric-row">
+                <span className="metric-label">檢測數量:</span>
+                <span className="metric-value">{metadata.detected_count} 個物件</span>
+              </div>
+              <div className="metric-row">
+                <span className="metric-label">追蹤狀態:</span>
+                <span className={`metric-value ${metadata.tracking_state === 'active' ? 'active' : ''}`}>
+                  {metadata.tracking_state === 'active' ? '● ' : '○ '}
+                  {metadata.tracking_state}
+                </span>
+              </div>
+              <div className="metric-row">
+                <span className="metric-label">更新頻率:</span>
+                <span className="metric-value">{metadata.rate_hz} Hz</span>
+              </div>
+              {metadata.ar_paths && metadata.ar_paths.length > 0 && (
+                <div className="metric-row">
+                  <span className="metric-label">AR 路徑數:</span>
+                  <span className="metric-value">{metadata.ar_paths.length} 條</span>
+                </div>
+              )}
+            </div>
+
+            {/* 檢測物件列表 */}
+            {metadata.detections && metadata.detections.length > 0 && (
+              <div className="detection-section">
+                <p className="setting-desc">檢測物件列表:</p>
+                <div className="detections">
+                  {metadata.detections.map((detection, index) => (
+                    <div key={index} className="detection-item">
+                      <span className="detection-index">#{index + 1}</span>
+                      <span className="detection-label">{detection.label || '未知'}</span>
+                      <span className="detection-confidence">
+                        信心度: {((detection.score || 0) * 100).toFixed(0)}%
+                      </span>
+                      {detection.bbox && (
+                        <span className="detection-bbox">
+                          [x:{detection.bbox[0]}, y:{detection.bbox[1]}]
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 軌跡預測 */}
+            {metadata.ar_paths && metadata.ar_paths.length > 0 && (
+              <div className="ar-path-section">
+                <p className="setting-desc">軌跡預測:</p>
+                <div className="ar-paths">
+                  {metadata.ar_paths.map((path, index) => (
+                    <div key={index} className="ar-path-item">
+                      <span className="path-label">預測路徑 #{index + 1}:</span>
+                      <span className="path-points">{path.length} 個點</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+function getPermissionDescription(permission: string): string {
+  const descriptions: Record<string, string> = {
+    view: '查看即時影像',
+    calibrate: '校準控制',
+    replay: '回放控制',
+    score_control: '計分控制',
+  };
+  return descriptions[permission] || permission;
+}
 
 export default SettingsPage;

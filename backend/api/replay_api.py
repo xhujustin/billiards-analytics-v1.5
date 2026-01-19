@@ -491,6 +491,65 @@ async def replay_video_stream(
         )
 
 
+@router.get("/api/recordings/{game_id}/video")
+async def get_video_file(game_id: str):
+    """
+    獲取錄影影片檔案（MP4 格式）
+    
+    直接提供 MP4 檔案用於播放
+    """
+    try:
+        # 檢查錄影是否存在
+        recording = db.get_recording(game_id)
+        if not recording:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "code": "ERR_RECORDING_NOT_FOUND",
+                        "message": "Recording not found",
+                        "details": {"game_id": game_id}
+                    }
+                }
+            )
+        
+        # 獲取影片路徑
+        video_path = recording.get("video_path")
+        if not video_path or not os.path.exists(video_path):
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "code": "ERR_RECORDING_NOT_FOUND",
+                        "message": "Video file not found",
+                        "details": {"video_path": video_path}
+                    }
+                }
+            )
+        
+        # 返回影片檔案
+        def file_iterator():
+            with open(video_path, "rb") as f:
+                yield from f
+        
+        return StreamingResponse(
+            file_iterator(),
+            media_type="video/mp4"
+        )
+    
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": "ERR_INTERNAL",
+                    "message": str(e),
+                    "details": {}
+                }
+            }
+        )
+
+
 @router.get("/replay/events/{game_id}")
 async def replay_events(
     game_id: str,

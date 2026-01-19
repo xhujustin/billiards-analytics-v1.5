@@ -1,4 +1,33 @@
-/* SettingsPage.css */
+/* SettingsPage.css - v1.5 深灰配色方案 */
+
+/* 頁面標題 */
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  text-align: center;
+  margin: 0 0 30px 0;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #404040;
+}
+
+/* 卡片樣式 */
+.card {
+  background: #333333;
+  border: 2px solid #404040;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.card-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 20px 0;
+  padding-bottom: 16px;
+  border-bottom: 3px solid #404040;
+}
 
 .settings-page {
   width: 100%;
@@ -17,7 +46,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid #404040;
 }
 
 .setting-row:last-child {
@@ -25,23 +54,30 @@
 }
 
 .setting-label {
-  color: #94a3b8;
+  color: #FFFFFF;
   font-size: 0.95em;
   font-weight: 500;
 }
 
 .setting-value {
-  color: #f8fafc;
+  color: #FFFFFF;
 }
 
 .setting-section {
   margin-top: 16px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
 }
 
 .setting-desc {
-  color: #94a3b8;
-  font-size: 0.9em;
-  margin-bottom: 12px;
+  color: #FFFFFF;
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 24px 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #404040;
 }
 
 /* 設備列表 */
@@ -57,18 +93,21 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #0f172a;
+  background: #1A1A1A;
+  border: 2px solid #404040;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .device-item:hover {
-  background: #1a2332;
+  background: #333333;
+  border-color: #FFFFFF;
 }
 
 .device-item.active {
-  background: #1e3a5f;
+  background: #555555;
+  border-color: #FFFFFF;
 }
 
 .device-item input[type='radio'] {
@@ -77,7 +116,7 @@
 
 .device-item label {
   cursor: pointer;
-  color: #f8fafc;
+  color: #FFFFFF;
   flex: 1;
 }
 
@@ -100,7 +139,7 @@
 
 .quality-option label {
   cursor: pointer;
-  color: #f8fafc;
+  color: #FFFFFF;
 }
 
 /* 設定訊息 */
@@ -116,13 +155,13 @@
 .setting-message.success {
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  border: 2px solid rgba(34, 197, 94, 0.5);
 }
 
 .setting-message.error {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 2px solid rgba(239, 68, 68, 0.5);
 }
 
 @keyframes fadeIn {
@@ -130,6 +169,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -145,5 +185,249 @@
 
   .quality-options {
     flex-direction: column;
+  }
+}
+
+/* ============================================
+   Session 資訊樣式（整合自 SessionPage.css）
+   ============================================ */
+
+.session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #404040;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: #FFFFFF;
+  font-size: 0.95em;
+  min-width: 100px;
+}
+
+.detail-value {
+  color: #FFFFFF;
+  flex: 1;
+}
+
+.status-active {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.session-actions {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #404040;
+  display: flex;
+  gap: 12px;
+}
+
+/* 權限資訊 */
+.permission-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.permissions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #1A1A1A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.permission-icon {
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.permission-name {
+  color: #FFFFFF;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.permission-desc {
+  color: #999999;
+  font-size: 0.9em;
+}
+
+/* ============================================
+   Metadata 監控樣式（整合自 MetadataPage.css）
+   ============================================ */
+
+/* 基本指標 */
+.metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #404040;
+}
+
+.metric-row:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  color: #FFFFFF;
+  font-size: 0.95em;
+}
+
+.metric-value {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.metric-value.active {
+  color: #22c55e;
+}
+
+/* 檢測物件列表 */
+.detection-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.detections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detection-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #1A1A1A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.detection-index {
+  color: #999999;
+  font-weight: bold;
+  min-width: 30px;
+}
+
+.detection-label {
+  color: #FFFFFF;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.detection-confidence {
+  color: #999999;
+  font-size: 0.9em;
+}
+
+.detection-bbox {
+  color: #999999;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85em;
+}
+
+/* AR 路徑 */
+.ar-path-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: #2A2A2A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.ar-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ar-path-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #1A1A1A;
+  border: 2px solid #404040;
+  border-radius: 6px;
+}
+
+.path-label {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.path-points {
+  color: #999999;
+  font-size: 0.9em;
+}
+
+/* 響應式設計補充 */
+@media (max-width: 768px) {
+  .detail-label {
+    min-width: 80px;
+    font-size: 0.85em;
+  }
+
+  .permission-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .permission-name {
+    min-width: auto;
+  }
+
+  .detection-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detection-index,
+  .detection-label {
+    min-width: auto;
   }
 }
