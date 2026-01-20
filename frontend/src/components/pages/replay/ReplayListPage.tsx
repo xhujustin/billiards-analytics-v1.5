@@ -98,6 +98,31 @@ const ReplayListPage: React.FC<ReplayListPageProps> = ({ mode, onBack, onPlayRec
         }
     };
 
+    const handleDeleteClick = async (gameId: string) => {
+        // 確認刪除
+        if (!window.confirm('確定要刪除這個錄影嗎？此操作無法復原。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/recordings/${gameId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok || response.status === 204) {
+                // 刪除成功，重新載入列表
+                alert('錄影已刪除');
+                fetchRecordings();
+            } else {
+                const error = await response.json();
+                alert(`刪除失敗: ${error.error?.message || '未知錯誤'}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete recording:', error);
+            alert('刪除失敗，請稍後再試');
+        }
+    };
+
     return (
         <div className="replay-list-page">
             {/* 頁首 */}
@@ -182,6 +207,13 @@ const ReplayListPage: React.FC<ReplayListPageProps> = ({ mode, onBack, onPlayRec
                                     onClick={() => handlePlayClick(recording.game_id)}
                                 >
                                     播放
+                                </button>
+                                <button
+                                    className="delete-button"
+                                    onClick={() => handleDeleteClick(recording.game_id)}
+                                    title="刪除錄影"
+                                >
+                                    刪除
                                 </button>
                             </div>
                         </div>

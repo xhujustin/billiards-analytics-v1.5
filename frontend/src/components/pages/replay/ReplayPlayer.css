@@ -29,6 +29,45 @@
     color: #FFFFFF;
 }
 
+.back-button {
+    padding: 0.5rem 1rem;
+    background: #333333;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #FFFFFF;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    background: #404040;
+    border-color: #FFFFFF;
+}
+
+.delete-button {
+    padding: 0.5rem 1rem;
+    background: #333333;
+    color: #FF4444;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-left: auto;
+}
+
+.delete-button:hover {
+    background: #FF4444;
+    color: #FFFFFF;
+    border-color: #FF4444;
+}
+
+.delete-button:active {
+    transform: scale(0.98);
+}
+
 /* 內容區 */
 .player-content {
     display: grid;

@@ -112,7 +112,10 @@ import os
 game_manager = GameManager()
 # 使用專案根目錄的 recordings 資料夾
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-recording_manager = RecordingManager(recordings_dir=os.path.join(project_root, "recordings"))
+recording_manager = RecordingManager(
+    recordings_dir=os.path.join(project_root, "recordings"),
+    db_path=os.path.join(os.path.dirname(__file__), "data", "recordings.db")
+)
 
 # ✅ 回放功能 API 模組（v1.5.1）
 from api import replay_router

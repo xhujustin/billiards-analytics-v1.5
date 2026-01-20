@@ -95,12 +95,11 @@ class RecordingManager:
             recording_dir = os.path.join(self.recordings_dir, game_id)
             os.makedirs(recording_dir, exist_ok=True)
             
-            # 初始化影片寫入（使用 mp4v 格式，兼容性更好）
+            # 初始化影片寫入
+            # 使用 mp4v 編碼（OpenCV 兼容性好），錄影完成後會自動轉換為 H.264
             video_path = os.path.join(recording_dir, "video.mp4")
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 使用 mp4v 編碼（廣泛支援）
-            self.video_writer = cv2.VideoWriter(
-                video_path, fourcc, fps, resolution
-            )
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.video_writer = cv2.VideoWriter(video_path, fourcc, fps, resolution)
             
             if not self.video_writer.isOpened():
                 raise RuntimeError(f"Failed to open video writer: {video_path}")
@@ -253,6 +252,51 @@ class RecordingManager:
                     cap.release()
                 except Exception as e:
                     print(f"[Recording] Thumbnail generation error: {e}")
+                
+                # 轉換影片為 H.264（如果使用了 mp4v 編碼）
+                try:
+                    import subprocess
+                    
+                    # 檢查是否需要轉換（檢查編碼格式）
+                    cap = cv2.VideoCapture(video_path)
+                    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+                    codec_str = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+                    cap.release()
+                    
+                    # 如果是 mp4v 或 FMP4，轉換為 H.264
+                    if codec_str.upper() in ['MP4V', 'FMP4']:
+                        print(f"[Recording] Converting {codec_str} to H.264...")
+                        temp_path = video_path + ".tmp.mp4"
+                        
+                        # 使用 FFmpeg 轉換
+                        cmd = [
+                            'ffmpeg',
+                            '-i', video_path,
+                            '-c:v', 'libx264',
+                            '-preset', 'fast',
+                            '-crf', '23',
+                            '-y',
+                            temp_path
+                        ]
+                        
+                        result = subprocess.run(cmd, capture_output=True)
+                        
+                        if result.returncode == 0 and os.path.exists(temp_path):
+                            # 替換原檔案
+                            os.remove(video_path)
+                            os.rename(temp_path, video_path)
+                            print(f"[Recording] Video converted to H.264")
+                        else:
+                            print(f"[Recording] FFmpeg conversion failed, keeping mp4v")
+                            if os.path.exists(temp_path):
+                                os.remove(temp_path)
+                    else:
+                        print(f"[Recording] Video codec: {codec_str} (no conversion needed)")
+                        
+                except FileNotFoundError:
+                    print(f"[Recording] FFmpeg not found, keeping mp4v format")
+                except Exception as e:
+                    print(f"[Recording] Video conversion error: {e}")
             
             # 保存元資料
             metadata_path = os.path.join(

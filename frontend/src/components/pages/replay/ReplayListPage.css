@@ -144,10 +144,12 @@
 
 .recording-actions {
     padding: 0 1rem 1rem 1rem;
+    display: flex;
+    gap: 0.5rem;
 }
 
 .play-button {
-    width: 100%;
+    flex: 1;
     padding: 0.75rem;
     background: #FFFFFF;
     color: #000000;
@@ -164,6 +166,28 @@
 }
 
 .play-button:active {
+    transform: scale(0.98);
+}
+
+.delete-button {
+    padding: 0.75rem 1rem;
+    background: #333333;
+    color: #FF4444;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.delete-button:hover {
+    background: #FF4444;
+    color: #FFFFFF;
+    border-color: #FF4444;
+}
+
+.delete-button:active {
     transform: scale(0.98);
 }
 

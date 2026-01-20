@@ -88,6 +88,31 @@ const ReplayPlayer: React.FC<ReplayPlayerProps> = ({ gameId, onBack }) => {
         return <div className="loading">載入中...</div>;
     }
 
+    const handleDelete = async () => {
+        if (!window.confirm('確定要刪除這個錄影嗎？此操作無法復原。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/recordings/${gameId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok || response.status === 204) {
+                alert('錄影已刪除');
+                if (onBack) {
+                    onBack();
+                }
+            } else {
+                const error = await response.json();
+                alert(`刪除失敗: ${error.error?.message || '未知錯誤'}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete recording:', error);
+            alert('刪除失敗，請稍後再試');
+        }
+    };
+
     return (
         <div className="replay-player">
             {/* 頁首 */}
@@ -99,6 +124,9 @@ const ReplayPlayer: React.FC<ReplayPlayerProps> = ({ gameId, onBack }) => {
                 )}
                 <h1>回放播放器</h1>
                 <span className="game-id">{gameId}</span>
+                <button className="delete-button" onClick={handleDelete}>
+                    刪除
+                </button>
             </div>
 
             <div className="player-content">

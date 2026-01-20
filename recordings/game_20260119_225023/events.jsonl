@@ -1,2 +1,0 @@
-{"timestamp": 1768834223.7542055, "event": "game_start", "data": {"game_type": "nine_ball", "players": ["玩家1", "玩家2"]}}
-{"timestamp": 1768834226.1024177, "event": "game_end", "data": {"winner": "玩家1", "final_score": [0, 0], "total_rounds": 0}}

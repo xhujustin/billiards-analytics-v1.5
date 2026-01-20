@@ -1,4 +1,0 @@
-{"timestamp": 1768833579.3477445, "event": "game_start", "data": {"game_type": "nine_ball", "players": ["xxx", "玩家2"]}}
-{"timestamp": 1768833581.351249, "event": "forfeit", "data": {"forfeit_player": "xxx", "winner": "玩家2", "round": 1}}
-{"timestamp": 1768833581.882625, "event": "forfeit", "data": {"forfeit_player": "玩家2", "winner": "xxx", "round": 1}}
-{"timestamp": 1768833584.5935788, "event": "game_end", "data": {"winner": "xxx", "final_score": [1, 1], "total_rounds": 2}}

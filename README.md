@@ -16,7 +16,6 @@
 ## 專案結構
 
 ```
-billiards-analytics-test/
 ├── backend/                 # Python 後端
 │   ├── main.py             # FastAPI 主程式（v1.5 REST + WebSocket）
 │   ├── config.py           # 環境配置管理
@@ -24,8 +23,21 @@ billiards-analytics-test/
 │   ├── tracking_engine.py  # YOLO 追蹤引擎
 │   ├── calibration.py      # 攝像機校準
 │   ├── mjpeg_streamer.py   # MJPEG 串流管理
+│   ├── recording_manager.py # 錄影管理（mp4v + FFmpeg 轉 H.264）
+│   ├── database.py         # SQLite 資料庫管理
 │   ├── requirements.txt    # Python 依賴
-│   └── .env.example        # 環境變數範例
+│   ├── .env.example        # 環境變數範例
+│   ├── api/                # API 模組
+│   │   ├── replay_api.py   # 回放 API
+│   │   └── thumbnail_api.py # 縮圖 API
+│   └── test-program/       # 測試和工具腳本
+│       ├── recording/      # 錄影相關工具
+│       │   ├── sync_recordings.py
+│       │   ├── generate_thumbnails.py
+│       │   └── convert_video.py
+│       ├── replay/         # 回放 API 測試
+│       ├── tracking/       # 追蹤測試
+│       └── utils/          # 其他工具
 │
 ├── frontend/               # React 前端
 │   ├── src/
@@ -39,7 +51,12 @@ billiards-analytics-test/
 │   │   ├── hooks/
 │   │   │   └── useBilliardsSDK.ts   # React Hooks
 │   │   ├── components/
-│   │   │   └── Dashboard.tsx        # 儀表板組件
+│   │   │   ├── Dashboard.tsx        # 儀表板組件
+│   │   │   └── pages/
+│   │   │       └── replay/          # 回放功能頁面
+│   │   │           ├── ReplayEntryPage.tsx
+│   │   │           ├── ReplayListPage.tsx
+│   │   │           └── ReplayPlayer.tsx
 │   │   ├── App.tsx
 │   │   └── main.tsx
 │   ├── package.json
@@ -47,8 +64,16 @@ billiards-analytics-test/
 │   ├── vite.config.ts
 │   └── .env
 │
+├── recordings/             # 錄影檔案儲存
+│   └── game_YYYYMMDD_HHMMSS/
+│       ├── video.mp4       # H.264 影片
+│       ├── thumbnail.jpg   # 縮圖 (640x360)
+│       ├── metadata.json   # 遊戲資料
+│       └── events.jsonl    # 事件日誌
+│
 └── docs/                   # 📚 完整技術文檔
     ├── README.md           # 文檔導航中心
+    ├── 錄影回放系統.md     # 錄影回放技術文檔
     ├── guides/             # 使用指南
     ├── troubleshooting/    # 故障排除
     ├── architecture/       # 架構設計
@@ -162,31 +187,43 @@ npm run dev
 
 ### 回放功能（v1.5.1 新增）
 
+**錄影系統**
+- 自動錄影：mp4v 編碼（OpenCV）→ FFmpeg 轉 H.264（瀏覽器支援）
+- 自動縮圖：提取第一幀生成 640x360 縮圖（16:9 比例）
+- 資料庫同步：錄影資訊自動同步到 SQLite
+- 依賴：FFmpeg（`winget install ffmpeg`）
+
 **資料庫架構**
 - SQLite 資料庫（`backend/data/recordings.db`）
 - 4 張核心資料表：`recordings`、`events`、`practice_stats`、`players`
 - 自動索引優化，支援高效查詢
-- 資料遷移工具（`backend/migrate_recordings.py`）
 
 **後端 API**
 - 錄影查詢：`GET /api/recordings`（支援篩選、分頁）
 - 錄影詳情：`GET /api/recordings/{game_id}`
+- 縮圖：`GET /api/recordings/{game_id}/thumbnail`（640x360 JPEG）
+- 影片：`GET /api/recordings/{game_id}/video`（H.264 MP4，支援範圍請求）
+- 刪除：`DELETE /api/recordings/{game_id}`（刪除資料庫和檔案）
 - 事件日誌：`GET /api/recordings/{game_id}/events`
 - 練習統計：`GET /api/stats/practice`
 - 玩家統計：`GET /api/stats/player/{player_name}`
-- 統計摘要：`GET /api/stats/summary`
-- 影片回放：`GET /replay/burnin/{game_id}.mjpg`
 
 **前端介面**
 - **回放功能入口**：左側導航「回放功能」
-- **玩家選擇頁面**：選擇要查看統計的玩家
-- **個人統計分析**：練習成功率、對戰勝率、時間範圍篩選
 - **回放列表頁面**：遊玩/練習模式錄影列表，支援搜尋和排序
-- **回放播放器**：H.264 影片播放、事件時間軸、遊戲資訊面板
+- **回放播放器**：H.264 影片播放、事件時間軸、遊戲資訊面板、刪除功能
 - **深灰配色主題**：統一的黑白/深灰視覺風格
+
+**工具腳本**（`backend/test-program/recording/`）
+- `sync_recordings.py` - 手動同步錄影到資料庫
+- `generate_thumbnails.py` - 批次生成縮圖
+- `convert_video.py` - 手動轉換影片為 H.264
+- `check_db.py` - 檢查資料庫記錄
+- `check_video_codec.py` - 檢查影片編碼格式
 
 **使用指南**
 - 完整操作流程請參考：[回放功能使用指南](docs/guides/REPLAY_GUIDE.md)
+- 技術文檔請參考：[錄影回放系統](docs/錄影回放系統.md)
 - API 詳細文檔請參考：[API 參考手冊](docs/api/API_REFERENCE.md#回放功能-apiv151-新增)
 
 ## 配置說明

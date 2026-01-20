@@ -6,7 +6,8 @@
 import os
 import cv2
 
-recordings_dir = "./recordings"
+# 使用絕對路徑
+recordings_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "recordings")
 
 # 掃描所有錄影資料夾
 for game_id in os.listdir(recordings_dir):
@@ -20,12 +21,12 @@ for game_id in os.listdir(recordings_dir):
     
     # 如果已有縮圖，跳過
     if os.path.exists(thumbnail_path):
-        print(f"✓ {game_id}: 縮圖已存在")
+        print(f"[OK] {game_id}: 縮圖已存在")
         continue
     
     # 如果沒有影片檔案，跳過
     if not os.path.exists(video_path):
-        print(f"✗ {game_id}: 影片檔案不存在")
+        print(f"[SKIP] {game_id}: 影片檔案不存在")
         continue
     
     # 生成縮圖
@@ -37,12 +38,12 @@ for game_id in os.listdir(recordings_dir):
             # 調整大小為 640x360
             thumbnail = cv2.resize(frame, (640, 360))
             cv2.imwrite(thumbnail_path, thumbnail, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            print(f"✓ {game_id}: 縮圖已生成")
+            print(f"[DONE] {game_id}: 縮圖已生成")
         else:
-            print(f"✗ {game_id}: 無法讀取影片第一幀")
+            print(f"[ERROR] {game_id}: 無法讀取影片第一幀")
         
         cap.release()
     except Exception as e:
-        print(f"✗ {game_id}: 錯誤 - {e}")
+        print(f"[ERROR] {game_id}: {e}")
 
 print("\n完成！")

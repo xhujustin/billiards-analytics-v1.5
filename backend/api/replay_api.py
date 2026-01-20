@@ -5,7 +5,7 @@
 符合 v1.5 協議規範
 """
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Response, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
 import os
@@ -201,7 +201,16 @@ async def delete_recording(game_id: str):
         success = db.delete_recording(game_id)
         
         if success:
-            # TODO: 同時刪除影片檔案（可選）
+            # 刪除錄影檔案和資料夾
+            try:
+                import shutil
+                recording_dir = os.path.dirname(recording.get("video_path", ""))
+                if recording_dir and os.path.exists(recording_dir):
+                    shutil.rmtree(recording_dir)
+                    print(f"[Recording] Deleted directory: {recording_dir}")
+            except Exception as e:
+                print(f"[Recording] Failed to delete files: {e}")
+            
             return Response(status_code=204)
         else:
             return JSONResponse(
@@ -492,11 +501,11 @@ async def replay_video_stream(
 
 
 @router.get("/api/recordings/{game_id}/video")
-async def get_video_file(game_id: str):
+async def get_video_file(game_id: str, request: Request):
     """
     獲取錄影影片檔案（MP4 格式）
     
-    直接提供 MP4 檔案用於播放
+    支援 HTTP 範圍請求（Range Request）用於影片播放
     """
     try:
         # 檢查錄影是否存在
@@ -527,15 +536,55 @@ async def get_video_file(game_id: str):
                 }
             )
         
-        # 返回影片檔案
-        def file_iterator():
-            with open(video_path, "rb") as f:
-                yield from f
+        # 獲取檔案大小
+        file_size = os.path.getsize(video_path)
         
-        return StreamingResponse(
-            file_iterator(),
-            media_type="video/mp4"
-        )
+        # 處理範圍請求
+        range_header = request.headers.get("range")
+        
+        if range_header:
+            # 解析範圍
+            range_match = range_header.replace("bytes=", "").split("-")
+            start = int(range_match[0]) if range_match[0] else 0
+            end = int(range_match[1]) if len(range_match) > 1 and range_match[1] else file_size - 1
+            
+            # 讀取指定範圍
+            def range_iterator():
+                with open(video_path, "rb") as f:
+                    f.seek(start)
+                    remaining = end - start + 1
+                    while remaining > 0:
+                        chunk_size = min(8192, remaining)
+                        data = f.read(chunk_size)
+                        if not data:
+                            break
+                        remaining -= len(data)
+                        yield data
+            
+            return StreamingResponse(
+                range_iterator(),
+                status_code=206,
+                media_type="video/mp4",
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(end - start + 1)
+                }
+            )
+        else:
+            # 返回完整影片檔案
+            def file_iterator():
+                with open(video_path, "rb") as f:
+                    yield from f
+            
+            return StreamingResponse(
+                file_iterator(),
+                media_type="video/mp4",
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(file_size)
+                }
+            )
     
     except Exception as e:
         return JSONResponse(
