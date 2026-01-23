@@ -7,9 +7,12 @@
 
 from fastapi import APIRouter, Query, Response, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from typing import Optional
+from typing import Optional, Annotated
 import os
 import cv2
+
+from fastapi import Body
+from error_codes import ERR_INTERNAL
 
 # 導入資料庫
 import sys
@@ -23,6 +26,96 @@ router = APIRouter()
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "recordings.db")
 db = Database(db_path)
+
+# Global variables shared from main.py
+recording_manager = None
+
+def init_replay_api(main_module):
+    """初始化 API 模組，取得 main 模組的共享變數"""
+    global recording_manager
+    recording_manager = main_module.recording_manager
+
+
+# ==================== 錄影控制 API ====================
+
+@router.post("/api/recording/start")
+async def start_recording(request: Annotated[dict, Body(...)]):
+    """開始錄影"""
+    if recording_manager is None:
+         return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": "Recording manager not initialized"}}
+        )
+
+    game_type = request.get("game_type")
+    players = request.get("players", [])
+    
+    resolution = request.get("resolution", (1920, 1080)) # Default to 1080p
+    
+    try:
+        game_id = recording_manager.start_recording(
+            game_type=game_type,
+            players=players,
+            resolution=resolution
+        )
+        return JSONResponse({
+            "status": "recording_started",
+            "game_id": game_id
+        })
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": str(e)}}
+        )
+
+
+@router.post("/api/recording/stop")
+async def stop_recording(request: Annotated[dict, Body(...)]):
+    """停止錄影"""
+    if recording_manager is None:
+         return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": "Recording manager not initialized"}}
+        )
+
+    final_score = request.get("final_score")
+    winner = request.get("winner")
+    total_rounds = request.get("total_rounds", 0)
+    
+    try:
+        result = recording_manager.stop_recording(
+            final_score=final_score,
+            winner=winner,
+            total_rounds=total_rounds
+        )
+        return JSONResponse(result)
+    except Exception as e:
+         return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": str(e)}}
+        )
+
+
+@router.post("/api/recording/event")
+async def log_recording_event(request: Annotated[dict, Body(...)]):
+    """記錄遊戲事件"""
+    if recording_manager is None:
+         return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": "Recording manager not initialized"}}
+        )
+
+    event_type = request.get("event_type")
+    data = request.get("data", {})
+    
+    try:
+        recording_manager.log_event(event_type, data)
+        return JSONResponse({"status": "logged"})
+    except Exception as e:
+         return JSONResponse(
+            status_code=500,
+            content={"error": {"code": ERR_INTERNAL, "message": str(e)}}
+        )
 
 
 # ==================== 錄影查詢 API ====================

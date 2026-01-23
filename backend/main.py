@@ -171,14 +171,7 @@ try:
 except Exception as e:
     print(f"⚠️  Warning: Failed to initialize Calibration API: {e}")
 
-# 初始化相機 API 模組
-try:
-    import api.camera_api as cam_api
-    import sys
-    cam_api.init_camera_api(sys.modules[__name__])
-    print("✅ Camera API initialized")
-except Exception as e:
-    print(f"⚠️  Warning: Failed to initialize Camera API: {e}")
+# Camera API initialization moved to after switch_camera_background definition
 
 
 # ==================== v1.5 錯誤處理 ====================
@@ -364,6 +357,26 @@ def switch_camera_background(device_id: int):
     finally:
         camera_state["is_switching"] = False
 
+# ==================== API Initialization (Delayed) ====================
+# 初始化相機 API 模組 (必須在 switch_camera_background 定義後)
+try:
+    import api.camera_api as cam_api
+    import sys
+    cam_api.init_camera_api(sys.modules[__name__])
+    print("✅ Camera API initialized (Delayed)")
+except Exception as e:
+    print(f"⚠️  Warning: Failed to initialize Camera API: {e}")
+
+# 初始化 Replay API (注入 recording_manager)
+try:
+    import api.replay_api as replay_api_module
+    import sys
+    replay_api_module.init_replay_api(sys.modules[__name__])
+    print("✅ Replay API initialized (with RecordingManager)")
+except Exception as e:
+    print(f"⚠️  Warning: Failed to initialize Replay API: {e}")
+
+
 
 def camera_capture_loop():
     """
@@ -412,6 +425,17 @@ def camera_capture_loop():
                     pass
 
             if not ret or frame is None:
+                # ✅ 處理切換狀態：如果是正在切換，則等待切換完成，不要嘗試重開舊相機
+                if camera_state.get("is_switching", False):
+                    # print("🔄 Camera loop: Switching in progress, waiting...") # 減少 log
+                    time.sleep(0.1)
+                    # 如果切換完成了，且有新的 cap，就更新
+                    if not camera_state.get("is_switching", False):
+                        if camera_state["current_cap"] is not None:
+                            cap = camera_state["current_cap"]
+                            print(f"✅ Camera loop: Picked up new camera {camera_state['selected_device_id']}")
+                    continue
+
                 print("⚠️ Failed to read frame, attempting to reopen camera...")
                 try:
                     cap.release()
@@ -478,7 +502,7 @@ def camera_capture_loop():
                 if has_subscribers:
                     try:
                         # 監控流：原始或處理後的幀 (1280×720)
-                        monitor_frame = cv2.resize(display_frame, (1280, 720))
+                        monitor_frame = cv2.resize(display_frame, (1920, 1080))
                         mjpeg_manager.update_monitor(monitor_frame)
 
                         # 投影流：使用獨立渲染器 (1920×1080)
@@ -490,7 +514,7 @@ def camera_capture_loop():
             elif mjpeg_manager is not None:
                 # 未啟用訂閱者檢查,總是編碼
                 try:
-                    monitor_frame = cv2.resize(display_frame, (1280, 720))
+                    monitor_frame = cv2.resize(display_frame, (1920, 1080))
                     mjpeg_manager.update_monitor(monitor_frame)
                     
                     # 投影流：使用獨立渲染器
@@ -503,8 +527,8 @@ def camera_capture_loop():
             # ✅ 錄影功能：寫入幀到錄影檔
             if recording_manager.is_recording:
                 try:
-                    # 使用監控流的尺寸 (1280x720) 進行錄影
-                    recording_frame = cv2.resize(display_frame, (1280, 720))
+                    # 使用 1080p 進行錄影
+                    recording_frame = cv2.resize(display_frame, (1920, 1080))
                     recording_manager.write_frame(recording_frame)
                 except Exception as e:
                     print(f"⚠️ Recording frame write error: {e}")
@@ -1733,87 +1757,6 @@ async def end_practice():
         return create_error_response(ERR_INTERNAL, str(e))
 
 
-# ================== Recording APIs ==================
-
-@app.post("/api/recording/start")
-async def start_recording(request: Annotated[dict, Body(...)]):
-    """開始錄影"""
-    game_type = request.get("game_type")
-    players = request.get("players", [])
-    
-    try:
-        game_id = recording_manager.start_recording(
-            game_type=game_type,
-            players=players
-        )
-        return JSONResponse({
-            "status": "recording_started",
-            "game_id": game_id
-        })
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/recording/stop")
-async def stop_recording(request: Annotated[dict, Body(...)]):
-    """停止錄影"""
-    final_score = request.get("final_score")
-    winner = request.get("winner")
-    total_rounds = request.get("total_rounds", 0)
-    
-    try:
-        result = recording_manager.stop_recording(
-            final_score=final_score,
-            winner=winner,
-            total_rounds=total_rounds
-        )
-        return JSONResponse(result)
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/recording/event")
-async def log_recording_event(request: Annotated[dict, Body(...)]):
-    """記錄遊戲事件"""
-    event_type = request.get("event_type")
-    data = request.get("data", {})
-    
-    try:
-        recording_manager.log_event(event_type, data)
-        return JSONResponse({"status": "logged"})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.get("/api/recordings")
-async def get_recordings():
-    """獲取錄影列表"""
-    try:
-        recordings = recording_manager.get_recordings_list()
-        return JSONResponse({"recordings": recordings})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.get("/api/recording/{game_id}/metadata")
-async def get_recording_metadata(game_id: str):
-    """獲取特定錄影的元資料"""
-    metadata = recording_manager.get_recording_metadata(game_id)
-    
-    if metadata:
-        return JSONResponse(metadata)
-    return create_error_response(ERR_NOT_FOUND, "Recording not found")
-
-
-@app.get("/api/recording/{game_id}/events")
-async def get_recording_events(game_id: str):
-    """獲取錄影的事件日誌"""
-    try:
-        events = recording_manager.get_recording_events(game_id)
-        return JSONResponse({"events": events})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
 
 if __name__ == "__main__":
     print("=" * 75)
@@ -2002,7 +1945,6 @@ async def end_practice():
     except Exception as e:
         return create_error_response(ERR_INTERNAL, str(e))
 
-
 # ================== Recording APIs ==================
 
 @app.post("/api/recording/start")
@@ -2055,6 +1997,34 @@ async def log_recording_event(request: Annotated[dict, Body(...)]):
         return create_error_response(ERR_INTERNAL, str(e))
 
 
+@app.get("/api/recordings")
+async def get_recordings():
+    """獲取錄影列表"""
+    try:
+        recordings = recording_manager.get_recordings_list()
+        return JSONResponse({"recordings": recordings})
+    except Exception as e:
+        return create_error_response(ERR_INTERNAL, str(e))
+
+
+@app.get("/api/recording/{game_id}/metadata")
+async def get_recording_metadata(game_id: str):
+    """獲取特定錄影的元資料"""
+    metadata = recording_manager.get_recording_metadata(game_id)
+    
+    if metadata:
+        return JSONResponse(metadata)
+    return create_error_response(ERR_NOT_FOUND, "Recording not found")
+
+
+@app.get("/api/recording/{game_id}/events")
+async def get_recording_events(game_id: str):
+    """獲取錄影的事件日誌"""
+    try:
+        events = recording_manager.get_recording_events(game_id)
+        return JSONResponse({"events": events})
+    except Exception as e:
+        return create_error_response(ERR_INTERNAL, str(e))
 # ==================== 錄影相關 API (已移至 api/replay_api.py 模組) ====================
 
 # ==================== 投影機校正 API (已移至 api/calibration_api.py 模組) ====================

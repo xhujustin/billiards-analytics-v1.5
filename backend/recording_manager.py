@@ -247,8 +247,12 @@ class RecordingManager:
             # 關閉檔案
             if self.video_writer:
                 self.video_writer.release()
+                self.video_writer = None # Explicitly clear reference
             if self.events_file:
                 self.events_file.close()
+
+            # Wait for file system to finalize
+            time.sleep(0.5)
             
             # 更新元資料
             metadata = self.current_recording["metadata"]
@@ -262,26 +266,33 @@ class RecordingManager:
             video_path = os.path.join(
                 self.current_recording["recording_dir"], "video.mp4"
             )
-            if os.path.exists(video_path):
+
+            # Verify video file exists and has content
+            if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
                 file_size_bytes = os.path.getsize(video_path)
                 metadata.file_size_mb = file_size_bytes / (1024 * 1024)
                 
                 # 生成縮圖（提取第一幀）
                 try:
                     cap = cv2.VideoCapture(video_path)
-                    ret, frame = cap.read()
-                    if ret:
-                        thumbnail_path = os.path.join(
-                            self.current_recording["recording_dir"], "thumbnail.jpg"
-                        )
-                        # 調整大小為 640x360 以節省空間
-                        thumbnail = cv2.resize(frame, (640, 360))
-                        cv2.imwrite(thumbnail_path, thumbnail, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                        print(f"[Recording] Thumbnail generated: {thumbnail_path}")
-                    cap.release()
+                    if cap.isOpened():
+                        # Try to read a few frames to find a valid one if the first one is empty
+                        for _ in range(5):
+                            ret, frame = cap.read()
+                            if ret and frame is not None and frame.size > 0:
+                                thumbnail_path = os.path.join(
+                                    self.current_recording["recording_dir"], "thumbnail.jpg"
+                                )
+                                # 調整大小為 640x360 以節省空間
+                                thumbnail = cv2.resize(frame, (640, 360))
+                                cv2.imwrite(thumbnail_path, thumbnail, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                print(f"[Recording] Thumbnail generated: {thumbnail_path}")
+                                break
+                        cap.release()
+                    else:
+                        print(f"[Recording] Could not open video for thumbnail: {video_path}")
                 except Exception as e:
                     print(f"[Recording] Thumbnail generation error: {e}")
-                
                 # 轉換影片為 H.264（如果使用了 mp4v 編碼）
                 try:
                     import subprocess
@@ -326,6 +337,10 @@ class RecordingManager:
                     print(f"[Recording] FFmpeg not found, keeping mp4v format")
                 except Exception as e:
                     print(f"[Recording] Video conversion error: {e}")
+
+            else:
+                 print(f"[Recording] Video file empty or missing: {video_path}")
+                 metadata.file_size_mb = 0
             
             # 保存元資料
             metadata_path = os.path.join(
