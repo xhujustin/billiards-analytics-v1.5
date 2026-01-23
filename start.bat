@@ -56,6 +56,7 @@ echo.
 echo Backend API: http://localhost:8001
 echo Frontend UI:  http://localhost:5173
 echo API Docs: http://localhost:8001/docs
+echo Projection: http://localhost:8001/stream/projector
 echo.
 echo Close the terminal windows to stop the services
 echo.

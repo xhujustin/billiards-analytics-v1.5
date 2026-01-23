@@ -23,7 +23,7 @@ class ProjectorRenderer:
     def __init__(self, width=1920, height=1080):
         self.width = width
         self.height = height
-        self.mode = ProjectorMode.IDLE
+        self.mode = ProjectorMode.CALIBRATION  # 預設顯示 ArUco 定位點
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         
         # 校正模式狀態
@@ -96,10 +96,10 @@ class ProjectorRenderer:
         ]
         
         position_labels = {
-            "top-left": "左上",
-            "top-right": "右上",
-            "bottom-right": "右下",
-            "bottom-left": "左下"
+            "top-left": "TL",
+            "top-right": "TR",
+            "bottom-right": "BR",
+            "bottom-left": "BL"
         }
         
         for marker_id, corner_key in markers_config:
@@ -121,11 +121,11 @@ class ProjectorRenderer:
             if 0 <= x < self.width - marker_size and 0 <= y < self.height - marker_size:
                 frame[y:y+marker_size, x:x+marker_size] = marker_bgr
             
-            # 繪製位置標籤 (不顯示 ID)
+            # 繪製位置標籤
             label = position_labels[corner_key]
-            label_pos = (x + marker_size // 2 - 30, y + marker_size + 30)
+            label_pos = (x + marker_size // 2 - 20, y + marker_size + 40)
             cv2.putText(frame, label, label_pos,
-                       cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
         
         return frame
     

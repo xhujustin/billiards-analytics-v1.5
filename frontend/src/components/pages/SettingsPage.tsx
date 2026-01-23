@@ -22,20 +22,77 @@ interface TableColorsResponse {
 interface SettingsPageProps {
   session?: Session | null;
   metadata?: MetadataUpdatePayload | null;
+  onNavigate?: (page: 'calibration') => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ session, metadata }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ session, metadata, onNavigate }) => {
   const [tableColors, setTableColors] = useState<TableColorsResponse | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('green');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
 
+  // 攝像頭狀態
+  interface CameraDevice {
+    id: number;
+    name: string;
+  }
+  const [cameras, setCameras] = useState<CameraDevice[]>([]);
+  const [currentCameraId, setCurrentCameraId] = useState<number>(0);
+  const [isSwitching, setIsSwitching] = useState<boolean>(false);
+
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
-  // 載入球桌顏色設定
+  // 載入設定
   useEffect(() => {
     fetchTableColors();
+    fetchCameras();
   }, []);
+
+  const fetchCameras = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/camera/list`);
+      if (response.ok) {
+        const data = await response.json();
+        setCameras(data.cameras);
+        setCurrentCameraId(data.current);
+        setIsSwitching(data.is_switching);
+      }
+    } catch (error) {
+      console.error('Error fetching cameras:', error);
+    }
+  };
+
+  const handleCameraSwitch = async (deviceId: number) => {
+    if (isSwitching || deviceId === currentCameraId) return;
+
+    setIsSwitching(true);
+    setMessage(`正在切換至 Camera ${deviceId}...`);
+
+    try {
+      const response = await fetch(`${backendUrl}/api/camera/switch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId })
+      });
+
+      if (response.ok) {
+        setCurrentCameraId(deviceId);
+        setMessage('✓ 攝像頭切換請求已發送，畫面將自動重整');
+      } else {
+        const error = await response.json();
+        setMessage(`❌ 切換失敗: ${error.detail}`);
+      }
+    } catch (error) {
+      console.error('Error switching camera:', error);
+      setMessage('❌ 切換失敗，請檢查後端連線');
+    } finally {
+      // 延遲解除鎖定狀態，等待幾秒讓切換完成
+      setTimeout(() => {
+        setIsSwitching(false);
+        fetchCameras(); // 重新獲取狀態
+      }, 3000);
+    }
+  };
 
   const fetchTableColors = async () => {
     try {
@@ -137,25 +194,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ session, metadata })
         <div className="settings-content">
           <div className="setting-row">
             <span className="setting-label">當前設備:</span>
-            <span className="setting-value">Camera 0</span>
+            <span className="setting-value">
+              {cameras.find(c => c.id === currentCameraId)?.name || `Camera ${currentCameraId}`}
+              {isSwitching && ' (切換中...)'}
+            </span>
           </div>
 
           <div className="setting-section">
             <p className="setting-desc">可用設備:</p>
             <div className="device-list">
-              <div className="device-item active">
-                <input type="radio" name="camera" checked readOnly />
-                <label>Camera 0 (當前使用)</label>
-              </div>
-              <div className="device-item">
-                <input type="radio" name="camera" />
-                <label>Camera 1</label>
-              </div>
+              {cameras.length > 0 ? (
+                cameras.map(camera => (
+                  <div
+                    key={camera.id}
+                    className={`device-item ${currentCameraId === camera.id ? 'active' : ''} ${isSwitching ? 'disabled' : ''}`}
+                    onClick={() => !isSwitching && handleCameraSwitch(camera.id)}
+                  >
+                    <input
+                      type="radio"
+                      name="camera"
+                      checked={currentCameraId === camera.id}
+                      readOnly
+                    />
+                    <label>{camera.name}</label>
+                  </div>
+                ))
+              ) : (
+                <div className="loading-placeholder">正在掃描設備...</div>
+              )}
             </div>
           </div>
 
-          <button className="btn btn-secondary">
-            掃描設備
+          <button
+            className="btn btn-secondary"
+            onClick={fetchCameras}
+            disabled={isSwitching}
+          >
+            {isSwitching ? '切換中...' : '重新掃描設備'}
           </button>
         </div>
       </div>
@@ -365,7 +440,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ session, metadata })
             </p>
             <button
               className="calibration-button"
-              onClick={() => window.location.hash = '#/calibration'}
+              onClick={() => onNavigate?.('calibration')}
               style={{
                 marginTop: '15px',
                 padding: '12px 24px',

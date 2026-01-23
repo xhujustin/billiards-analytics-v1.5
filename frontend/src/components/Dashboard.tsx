@@ -56,23 +56,6 @@ export const Dashboard: React.FC = () => {
     }
   }, [metadata]);
 
-  // 監聽 hash 路由變化
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash === '#/calibration') {
-        setCurrentPage('calibration');
-      }
-    };
-
-    // 初始檢查
-    handleHashChange();
-
-    // 監聽變化
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
   // YOLO 控制功能
   const handleToggleAnalysis = async () => {
     const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
@@ -184,9 +167,9 @@ export const Dashboard: React.FC = () => {
           />
         );
       case 'settings':
-        return <SettingsPage session={session} metadata={metadata} />;
+        return <SettingsPage session={session} metadata={metadata} onNavigate={setCurrentPage} />;
       case 'calibration':
-        return <AutoCalibrationPage />;
+        return <AutoCalibrationPage onBack={() => setCurrentPage('settings')} burninUrl={burninUrl} />;
       default:
         return <StreamPage burninUrl={burninUrl} isAnalyzing={isAnalyzing} health={health} metadata={metadata} isConnected={isConnected} />;
     }

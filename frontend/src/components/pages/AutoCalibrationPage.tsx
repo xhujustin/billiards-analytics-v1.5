@@ -3,7 +3,7 @@
  * 兩頁式流程: 1. 定位 ArUco 標記  2. 檢測與確認
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AutoCalibrationPage.css';
 
 type CornerPosition = 'top-left' | 'top-right' | 'bottom-right' | 'bottom-left';
@@ -20,7 +20,12 @@ interface DetectionResult {
     message: string;
 }
 
-export const AutoCalibrationPage: React.FC = () => {
+interface AutoCalibrationPageProps {
+    onBack?: () => void;
+    burninUrl?: string;
+}
+
+export const AutoCalibrationPage: React.FC<AutoCalibrationPageProps> = ({ onBack, burninUrl }) => {
     const [currentPage, setCurrentPage] = useState<1 | 2>(1);
     const [selectedCorner, setSelectedCorner] = useState<CornerPosition>('top-left');
     const [offsets, setOffsets] = useState({
@@ -33,14 +38,14 @@ export const AutoCalibrationPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
 
+
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
-    const previewIntervalRef = useRef<number | null>(null);
 
     const cornerLabels: Record<CornerPosition, string> = {
         'top-left': '左上',
         'top-right': '右上',
+        'bottom-left': '左下',
         'bottom-right': '右下',
-        'bottom-left': '左下'
     };
 
     // 鍵盤控制
@@ -201,7 +206,18 @@ export const AutoCalibrationPage: React.FC = () => {
     return (
         <div className="auto-calibration-page">
             <div className="calibration-header">
-                <h2>投影機自動校正</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="btn btn-secondary"
+                            style={{ padding: '8px 16px' }}
+                        >
+                            ← 返回
+                        </button>
+                    )}
+                    <h2>投影機自動校正</h2>
+                </div>
                 <div className="progress-indicator">
                     步驟 {currentPage}/2: {currentPage === 1 ? '定位 ArUco 標記' : '檢測與確認'}
                 </div>
@@ -216,11 +232,11 @@ export const AutoCalibrationPage: React.FC = () => {
             {currentPage === 1 && (
                 <div className="page-1">
                     <div className="projector-preview-section">
-                        <h3>投影機畫面預覽</h3>
+                        <h2 style={{ marginBottom: '16px' }}>投影機即時畫面預覽</h2>
                         <div className="preview-container">
                             <img
-                                src={`${backendUrl}/burnin/projector.mjpg`}
-                                alt="投影機畫面"
+                                src={burninUrl || `${backendUrl}/burnin/camera1.mjpg?quality=med`}
+                                alt="即時畫面"
                                 className="projector-stream"
                             />
                         </div>

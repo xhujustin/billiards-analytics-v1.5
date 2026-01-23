@@ -2,12 +2,12 @@
 
 ## 功能概述
 
-投影機自動校正功能使用 OpenCV 自動識別棋盤格,簡化校正流程,一次完成相機-投影機座標映射和投影範圍設定。
+投影機自動校正功能使用 ArUco 標記進行相機-投影機座標映射,簡化校正流程,快速完成投影範圍設定。
 
 **核心特性**:
-- ✅ 自動識別 4×4 棋盤格
-- ✅ 方向鍵控制棋盤格位置
-- ✅ 即時預覽綠色框線 + 白色填充
+- ✅ 自動顯示 4 個 ArUco 標記 (ID: 0-3)
+- ✅ API 控制標記位置
+- ✅ 相機自動檢測 ArUco 標記
 - ✅ 一鍵確認完成校正
 
 ---
@@ -30,48 +30,46 @@
 2. 點擊「投影機校正」按鈕
 3. 系統自動開啟校正介面
 
-### 步驟 3: 調整棋盤格位置
+### 步驟 3: 調整 ArUco 標記位置
 
 **投影機畫面**:
-- 自動顯示 4×4 黑白棋盤格
-- 棋盤格初始位置在畫面中央
+- 自動顯示 4 個 ArUco 標記
+- 標記位置: 左上(TL)、右上(TR)、右下(BR)、左下(BL)
 
-**前端控制**:
-```
-使用方向鍵移動棋盤格:
-  ↑ : 向上移動
-  ↓ : 向下移動
-  ← : 向左移動
-  → : 向右移動
+**API 控制**:
+```bash
+# 移動左上角標記
+curl -X POST http://localhost:8001/api/calibration/move-corner \
+  -H "Content-Type: application/json" \
+  -d '{"corner": "top-left", "offset": {"x": -400, "y": -400}}'
 ```
 
-**目標**: 將棋盤格移動到撞球桌範圍內
+**目標**: 將 4 個標記移動到撞球桌四個角落
 
 ### 步驟 4: 自動檢測
 
 **系統行為**:
 - 相機持續拍攝畫面
-- OpenCV 自動檢測棋盤格
+- ArUco 檢測器自動識別標記
 - 檢測成功後顯示:
-  - 綠色框線 (棋盤格外框)
-  - 白色半透明填充
-  - 四個角點標記
+  - 標記 ID 和位置
+  - 四個角點座標
 
 **檢測狀態**:
-- ✓ 已檢測到棋盤格 → 可以確認
-- ✗ 未檢測到 → 調整投影位置
+- ✓ 已檢測到 4 個標記 → 可以確認
+- ✗ 未檢測到 → 調整投影位置或光線
 
 ### 步驟 5: 確認校正
 
-1. 檢查預覽畫面中的綠色框線是否對齊球桌
-2. 點擊「確認校正」按鈕
-3. 系統計算校準矩陣並儲存
+1. 確認相機已檢測到 4 個 ArUco 標記
+2. 呼叫確認 API 完成校正
+3. 系統計算 Homography 矩陣並儲存
 
 **完成提示**:
 ```
 ✅ 校正完成!
 相機-投影機座標映射已建立
-投影範圍: 800×800 (居中)
+Homography 矩陣已儲存至 calibration_matrix.npy
 ```
 
 ---
@@ -83,12 +81,13 @@
 ```
 ┌─────────────────────────┐
 │                         │
-│    ■ □ ■ □             │
-│    □ ■ □ ■             │
-│    ■ □ ■ □             │
-│    □ ■ □ ■             │
+│  ┌─┐            ┌─┐    │
+│  │0│ TL      TR │1│    │
+│  └─┘            └─┘    │
 │                         │
-│  ● 綠色角點標記         │
+│  ┌─┐            ┌─┐    │
+│  │3│ BL      BR │2│    │
+│  └─┘            └─┘    │
 └─────────────────────────┘
 ```
 
@@ -97,13 +96,13 @@
 ```
 ┌─────────────────────────┐
 │  相機即時畫面           │
-│  ┌───────────────┐      │
-│  │ ●──────────● │      │
-│  │ │ 白色填充 │ │      │
-│  │ │          │ │      │
-│  │ ●──────────● │      │
-│  └───────────────┘      │
-│  綠色框線 = 投影範圍    │
+│  ┌─┐            ┌─┐    │
+│  │0│ (檢測到)   │1│    │
+│  └─┘            └─┘    │
+│                         │
+│  ┌─┐            ┌─┐    │
+│  │3│            │2│    │
+│  └─┘            └─┘    │
 └─────────────────────────┘
 ```
 
@@ -128,28 +127,29 @@
 
 ## 常見問題
 
-### Q1: 檢測不到棋盤格?
+### Q1: 檢測不到 ArUco 標記?
 
 **原因**:
 - 投影位置超出相機視野
 - 光線條件不佳
-- 棋盤格變形過大
+- 標記變形或模糊
 
 **解決方法**:
-1. 調整投影機位置,確保棋盤格在相機視野內
+1. 調整投影機位置,確保標記在相機視野內
 2. 改善環境光線
-3. 使用方向鍵微調棋盤格位置
+3. 使用 API 調整標記位置
 
 ### Q2: 檢測結果不準確?
 
 **原因**:
-- 棋盤格邊緣模糊
+- 標記邊緣模糊
 - 投影機梯形變形嚴重
+- 相機角度過於傾斜
 
 **解決方法**:
 1. 調整投影機焦距
 2. 先進行梯形校正 (如果投影機支援)
-3. 增加環境光線對比度
+3. 確保相機和投影機固定不動
 
 ### Q3: 校正後投影位置偏移?
 
@@ -166,27 +166,31 @@
 
 ## 技術原理
 
-### 棋盤格檢測
+### ArUco 標記檢測
 
-使用 OpenCV 的 `findChessboardCorners()` 函式:
+使用 OpenCV 的 ArUco 模組:
 
 ```python
-# 檢測 3×3 內角點 (4×4 棋盤格)
-ret, corners = cv2.findChessboardCorners(
-    gray_image, 
-    (3, 3),
-    cv2.CALIB_CB_ADAPTIVE_THRESH
-)
+# 初始化 ArUco 字典
+aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 
-# 亞像素精度優化
-corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+# 檢測標記
+corners, ids, rejected = cv2.aruco.detectMarkers(
+    gray_image,
+    aruco_dict,
+    parameters=cv2.aruco.DetectorParameters()
+)
 ```
 
 ### 座標轉換
 
 ```python
 # 相機座標 → 投影機座標
-homography_matrix = cv2.findHomography(camera_corners, projector_corners)
+# 使用 4 個 ArUco 標記的中心點作為對應點
+homography_matrix, status = cv2.findHomography(
+    camera_corners,  # 相機中檢測到的 4 個標記中心
+    projector_corners  # 投影機中 4 個標記的位置
+)
 
 # 應用轉換
 transformed = cv2.perspectiveTransform(points, homography_matrix)
@@ -196,37 +200,25 @@ transformed = cv2.perspectiveTransform(points, homography_matrix)
 
 ## 進階設定
 
-### 調整檢測參數
+### 調整標記大小
 
-修改 `backend/checkerboard_detector.py`:
+修改 `backend/projector_renderer.py`:
 
 ```python
-# 更改棋盤格尺寸
-detector = CheckerboardDetector(pattern_size=(3, 3))  # 預設
-
-# 更改檢測標誌
-cv2.findChessboardCorners(
-    gray,
-    pattern_size,
-    cv2.CALIB_CB_ADAPTIVE_THRESH +  # 自適應閾值
-    cv2.CALIB_CB_NORMALIZE_IMAGE +  # 正規化
-    cv2.CALIB_CB_FAST_CHECK         # 快速檢查
-)
+# 更改標記大小 (預設 200px)
+marker_size = 250  # 較大的標記
+marker_size = 150  # 較小的標記
 ```
 
-### 調整移動步長
+### 調整標記位置
 
-前端控制:
+使用 API 調整:
 
-```typescript
-// 預設步長 20px
-const step = 20;
-
-// 精細調整 (10px)
-const step = 10;
-
-// 快速移動 (50px)
-const step = 50;
+```bash
+# 調整左上角標記偏移
+curl -X POST http://localhost:8001/api/calibration/move-corner \
+  -H "Content-Type: application/json" \
+  -d '{"corner": "top-left", "offset": {"x": -500, "y": -500}}'
 ```
 
 ---
@@ -276,4 +268,4 @@ python backend/main.py
 
 ## 更新記錄
 
-**01/23**: 建立投影機自動校正使用指南,包含完整操作流程、界面說明、常見問題和技術原理。
+**01/23**: 更新投影機自動校正使用指南,改用 ArUco 標記進行校正,包含完整操作流程、界面說明、常見問題和技術原理。

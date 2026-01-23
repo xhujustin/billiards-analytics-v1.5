@@ -55,6 +55,12 @@ app.include_router(replay_router)
 from api.thumbnail_api import router as thumbnail_router
 app.include_router(thumbnail_router)
 
+from api.calibration_api import router as calibration_router
+app.include_router(calibration_router)
+
+from api.camera_api import router as camera_router
+app.include_router(camera_router)
+
 # 載入追蹤引擎
 tracker: Optional[PoolTracker] = None
 try:
@@ -156,9 +162,23 @@ recording_manager = RecordingManager(
     db_path=os.path.join(os.path.dirname(__file__), "data", "recordings.db")
 )
 
-# ✅ 回放功能 API 模組（v1.5.1）
-from api import replay_router
-app.include_router(replay_router)
+# 初始化校正 API 模組 (在所有變數定義後)
+try:
+    import api.calibration_api as calib_api
+    import sys
+    calib_api.init_calibration_api(sys.modules[__name__])
+    print("✅ Calibration API initialized")
+except Exception as e:
+    print(f"⚠️  Warning: Failed to initialize Calibration API: {e}")
+
+# 初始化相機 API 模組
+try:
+    import api.camera_api as cam_api
+    import sys
+    cam_api.init_camera_api(sys.modules[__name__])
+    print("✅ Camera API initialized")
+except Exception as e:
+    print(f"⚠️  Warning: Failed to initialize Camera API: {e}")
 
 
 # ==================== v1.5 錯誤處理 ====================
@@ -2035,182 +2055,7 @@ async def log_recording_event(request: Annotated[dict, Body(...)]):
         return create_error_response(ERR_INTERNAL, str(e))
 
 
-@app.get("/api/recordings")
-async def get_recordings():
-    """獲取錄影列表"""
-    try:
-        recordings = recording_manager.get_recordings_list()
-        return JSONResponse({"recordings": recordings})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
+# ==================== 錄影相關 API (已移至 api/replay_api.py 模組) ====================
 
+# ==================== 投影機校正 API (已移至 api/calibration_api.py 模組) ====================
 
-@app.get("/api/recording/{game_id}/metadata")
-async def get_recording_metadata(game_id: str):
-    """獲取特定錄影的元資料"""
-    metadata = recording_manager.get_recording_metadata(game_id)
-    
-    if metadata:
-        return JSONResponse(metadata)
-    return create_error_response(ERR_NOT_FOUND, "Recording not found")
-
-
-@app.get("/api/recording/{game_id}/events")
-async def get_recording_events(game_id: str):
-    """獲取錄影的事件日誌"""
-    try:
-        events = recording_manager.get_recording_events(game_id)
-        return JSONResponse({"events": events})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-# ==================== 投影機校正 API ====================
-
-@app.post("/api/calibration/start")
-async def start_calibration():
-    """開始校正流程"""
-    calibration_state["is_calibrating"] = True
-    calibration_state["detected_corners"] = None
-    
-    # 切換投影機到校正模式
-    if projector_renderer is not None:
-        projector_renderer.set_mode(ProjectorMode.CALIBRATION)
-    
-    return {"status": "ok", "message": "校正已啟動"}
-
-@app.post("/api/calibration/move-corner")
-async def move_corner(data: dict):
-    """
-    移動指定角落的標記
-    """
-    corner = data.get("corner")
-    offset = data.get("offset", {})
-    
-    if corner not in calibration_state["corner_offsets"]:
-        raise HTTPException(status_code=400, detail="Invalid corner")
-    
-    # 更新偏移量
-    calibration_state["corner_offsets"][corner] = offset
-    
-    # 更新投影機渲染器
-    if projector_renderer is not None:
-        projector_renderer.update_calibration_offsets(calibration_state["corner_offsets"])
-    
-    return {"status": "ok", "corner": corner, "offset": offset}
-
-@app.get("/api/calibration/detect")
-async def detect_aruco_markers():
-    """檢測當前相機畫面中的 ArUco 標記"""
-    cap = camera_state.get("current_cap")
-    if cap is None:
-        raise HTTPException(status_code=500, detail="相機未初始化")
-    
-    ret, frame = cap.read()
-    if not ret:
-        raise HTTPException(status_code=500, detail="無法讀取相機畫面")
-    
-    if aruco_detector is None:
-        raise HTTPException(status_code=500, detail="ArUco 檢測器未初始化")
-    
-    corners = aruco_detector.detect(frame)
-    
-    if corners is None:
-        return {
-            "detected": False,
-            "message": "未檢測到完整的 4 個 ArUco 標記,請調整投影位置"
-        }
-    
-    calibration_state["detected_corners"] = corners.tolist()
-    
-    return {
-        "detected": True,
-        "corners": corners.tolist(),
-        "marker_ids": [0, 1, 2, 3],
-        "message": "ArUco 標記檢測成功"
-    }
-
-@app.get("/api/calibration/preview")
-async def get_calibration_preview():
-    """獲取校正預覽畫面"""
-    cap = camera_state.get("current_cap")
-    if cap is None:
-        raise HTTPException(status_code=500, detail="相機未初始化")
-    
-    ret, frame = cap.read()
-    if not ret:
-        raise HTTPException(status_code=500, detail="無法讀取相機畫面")
-    
-    if aruco_detector is not None:
-        corners = aruco_detector.detect(frame)
-        
-        if corners is not None and projector_overlay is not None:
-            frame = projector_overlay.draw_preview_overlay(frame, corners)
-    
-    ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-    return Response(content=buffer.tobytes(), media_type="image/jpeg")
-
-@app.post("/api/calibration/confirm")
-async def confirm_calibration():
-    """確認校正並計算矩陣"""
-    import numpy as np
-    
-    corners = calibration_state.get("detected_corners")
-    if corners is None:
-        raise HTTPException(status_code=400, detail="尚未檢測到 ArUco 標記")
-    
-    if calibrator is None:
-        raise HTTPException(status_code=500, detail="Calibrator 未初始化")
-    
-    # 計算投影機座標
-    corner_offsets = calibration_state["corner_offsets"]
-    center_x, center_y = 1920 // 2, 1080 // 2
-    
-    projector_corners = []
-    for corner_key in ["top-left", "top-right", "bottom-right", "bottom-left"]:
-        offset = corner_offsets[corner_key]
-        projector_corners.append([center_x + offset["x"], center_y + offset["y"]])
-    
-    # 計算校準矩陣
-    src_points = np.array(corners, dtype="float32")
-    dst_points = np.array(projector_corners, dtype="float32")
-    
-    calibrator.homography_matrix, _ = cv2.findHomography(src_points, dst_points)
-    np.save("calibration_matrix.npy", calibrator.homography_matrix)
-    
-    # 計算投影範圍
-    xs = [p[0] for p in projector_corners]
-    ys = [p[1] for p in projector_corners]
-    bounds = {
-        "x": int(min(xs)),
-        "y": int(min(ys)),
-        "width": int(max(xs) - min(xs)),
-        "height": int(max(ys) - min(ys))
-    }
-    calibrator.set_projection_bounds(bounds)
-    
-    calibration_state["is_calibrating"] = False
-    
-    if projector_renderer is not None:
-        projector_renderer.set_mode(ProjectorMode.IDLE)
-    
-    return {"status": "ok", "message": "校正完成", "bounds": bounds}
-
-@app.post("/api/projector/mode")
-async def set_projector_mode(data: dict):
-    """設定投影機模式"""
-    mode_str = data.get("mode", "idle")
-    try:
-        mode = ProjectorMode(mode_str)
-        if projector_renderer is not None:
-            projector_renderer.set_mode(mode)
-        return {"status": "ok", "mode": mode.value}
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid mode")
-
-@app.post("/api/projector/ar/update")
-async def update_ar_data(ar_data: dict):
-    """更新 AR 疊加資料"""
-    if projector_renderer is not None:
-        projector_renderer.update_ar_data(ar_data)
-    return {"status": "ok"}
