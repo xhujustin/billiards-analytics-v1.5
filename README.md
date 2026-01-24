@@ -19,27 +19,44 @@
 ├── backend/                 # Python 後端
 │   ├── main.py             # FastAPI 主程式（v1.5 REST + WebSocket）
 │   ├── config.py           # 環境配置管理
-│   ├── session_manager.py  # Session 生命週期管理
-│   ├── tracking_engine.py  # YOLO 追蹤引擎
-│   ├── calibration.py      # 投影機校正 (ArUco 自動校正)
-│   ├── aruco_detector.py   # ArUco 標記檢測器 (OpenCV 4.8.1+)
-│   ├── projector_renderer.py # 投影機渲染器
-│   ├── mjpeg_streamer.py   # MJPEG 串流管理
-│   ├── recording_manager.py # 錄影管理（mp4v + FFmpeg 轉 H.264）
-│   ├── database.py         # SQLite 資料庫管理
+│   │
+│   ├── core/               # 核心模組
+│   │   ├── error_codes.py      # 錯誤碼定義
+│   │   ├── session_manager.py  # Session 生命週期管理
+│   │   └── performance_monitor.py # 效能監控
+│   │
+│   ├── tracking/           # 追蹤模組
+│   │   ├── tracking_engine.py  # YOLO 追蹤引擎
+│   │   └── game_manager.py     # 遊戲管理器
+│   │
+│   ├── streaming/          # 串流模組
+│   │   ├── mjpeg_streamer.py   # MJPEG 串流管理
+│   │   └── recording_manager.py # 錄影管理（mp4v + FFmpeg 轉 H.264）
+│   │
+│   ├── calibration/        # 校正模組
+│   │   ├── calibration.py      # 投影機校正 (ArUco 自動校正)
+│   │   ├── aruco_detector.py   # ArUco 標記檢測器 (OpenCV 4.8.1+)
+│   │   ├── projector_renderer.py # 投影機渲染器
+│   │   └── projector_overlay.py # 投影疊加
+│   │
+│   ├── database/           # 資料庫模組
+│   │   ├── database.py         # SQLite 資料庫管理
+│   │   └── migrate_recordings.py # 資料遷移
+│   │
+│   ├── api/                # API 路由
+│   │   ├── calibration_api.py  # 校正 API
+│   │   ├── camera_api.py       # 相機 API
+│   │   ├── replay_api.py       # 回放 API
+│   │   └── thumbnail_api.py    # 縮圖 API
+│   │
+│   ├── yolo-weight/        # YOLO 模型檔案
+│   │   └── pool.pt             # 撞球檢測模型 (6.2 MB)
+│   │
+│   ├── data/               # 資料庫檔案
 │   ├── requirements.txt    # Python 依賴
 │   ├── .env.example        # 環境變數範例
-│   ├── yolo-weight/        # YOLO 模型檔案
-│   │   └── pool.pt       # 撞球檢測模型 (6.2 MB)
-│   ├── api/                # API 模組
-│   │   ├── replay_api.py   # 回放 API
-│   │   ├── calibration_api.py # 校正 API
-│   │   └── thumbnail_api.py # 縮圖 API
 │   └── test-program/       # 測試和工具腳本
 │       ├── recording/      # 錄影相關工具
-│       │   ├── sync_recordings.py
-│       │   ├── generate_thumbnails.py
-│       │   └── convert_video.py
 │       ├── replay/         # 回放 API 測試
 │       ├── tracking/       # 追蹤測試
 │       └── utils/          # 其他工具

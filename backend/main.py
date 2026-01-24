@@ -11,22 +11,22 @@ from typing import Annotated, Any, Optional
 import config
 import cv2
 import uvicorn
-from calibration import Calibrator
+from calibration.calibration import Calibrator
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
-from tracking_engine import PoolTracker
-from mjpeg_streamer import DualMJPEGManager
-from session_manager import session_manager, Role, SessionState
-from error_codes import (
+from tracking.tracking_engine import PoolTracker
+from streaming.mjpeg_streamer import DualMJPEGManager
+from core.session_manager import session_manager, Role, SessionState
+from core.error_codes import (
     ERR_INVALID_ARGUMENT, ERR_NOT_FOUND, ERR_FORBIDDEN, ERR_SESSION_EXPIRED,
     ERR_STREAM_UNAVAILABLE, ERR_INTERNAL, create_error_response
 )
-from performance_monitor import PerformanceMonitor
-from aruco_detector import ArucoDetector
-from projector_renderer import ProjectorRenderer, ProjectorMode
-from projector_overlay import ProjectorOverlay
+from core.performance_monitor import PerformanceMonitor
+from calibration.aruco_detector import ArucoDetector
+from calibration.projector_renderer import ProjectorRenderer, ProjectorMode
+from calibration.projector_overlay import ProjectorOverlay
 
 perf_stats: dict[str, Any] = {
     "total_frames": 0,
@@ -149,9 +149,9 @@ camera_running = threading.Event()
 # ✅ 全域效能監控器 (用於 API 查詢)
 global_perf_monitor: Optional[PerformanceMonitor] = None
 
-# ✅ 遊戲模式管理器
-from game_manager import GameManager
-from recording_manager import RecordingManager
+# 遊戲模式管理器
+from tracking.game_manager import GameManager
+from streaming.recording_manager import RecordingManager
 import os
 
 game_manager = GameManager()
@@ -538,9 +538,9 @@ def camera_capture_loop():
             perf_monitor.record_frame(frame_time)
             
             # 每 30 幀輸出一次效能統計
-            if frame_count % 30 == 0:
-                stats = perf_monitor.get_stats()
-                print(f"📊 Performance: FPS={stats['current_fps']:.1f}, Latency={stats['avg_latency_ms']:.1f}ms")
+            #if frame_count % 30 == 0:
+            #    stats = perf_monitor.get_stats()
+            #    print(f"📊 Performance: FPS={stats['current_fps']:.1f}, Latency={stats['avg_latency_ms']:.1f}ms")
             
             # 控制幀率（30 FPS）
             target_time = 1.0 / 30.0
@@ -1822,128 +1822,6 @@ if __name__ == "__main__":
             return create_error_response(ERR_INTERNAL, str(e))
     
     uvicorn.run(app, host="0.0.0.0", port=8001)
-
-
-# ================== Game Mode APIs ==================
-
-@app.post("/api/game/start")
-async def start_game(request: Annotated[dict, Body(...)]):
-    """開始遊戲"""
-    mode = request.get("mode", "nine_ball")
-    player1 = request.get("player1", "玩家1")
-    player2 = request.get("player2", "玩家2")
-    target_rounds = request.get("target_rounds", 5)
-    shot_time_limit = request.get("shot_time_limit", 0)  # ⭐ v1.5 新增
-    
-    print(f"🎮 Starting game: mode={mode}, players={player1} vs {player2}, rounds={target_rounds}, time_limit={shot_time_limit}")
-    
-    try:
-        if mode == "nine_ball":
-            result = game_manager.start_nine_ball(player1, player2, target_rounds, shot_time_limit)
-            
-            # 檢查是否有錯誤
-            if "error" in result:
-                print(f"❌ Game start failed: {result['error']}")
-                return create_error_response(ERR_INVALID_ARGUMENT, result["error"])
-            
-            print(f"✅ Game started successfully: {result}")
-            return JSONResponse(result)
-        else:
-            print(f"❌ Unsupported mode: {mode}")
-            return create_error_response(ERR_INVALID_ARGUMENT, f"Unsupported mode: {mode}")
-        
-    except Exception as e:
-        print(f"❌ Exception in start_game: {e}")
-        import traceback
-        traceback.print_exc()
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/game/check_rules")
-async def check_game_rules(request: Annotated[dict, Body(...)]):
-    """檢查遊戲規則 (9球)"""
-    first_contact = request.get("first_contact")
-    potted_ball = request.get("potted_ball")
-    
-    try:
-        result = game_manager.check_nine_ball_rules(first_contact, potted_ball)
-        return JSONResponse(result)
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/game/end_turn")
-async def end_turn():
-    """結束回合,換人"""
-    try:
-        game_manager.switch_player()
-        state = game_manager.get_game_state()
-        return JSONResponse(state or {"error": "No active game"})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.get("/api/game/state")
-async def get_game_state():
-    """獲取遊戲狀態"""
-    state = game_manager.get_game_state()
-    if state:
-        return JSONResponse(state)
-    return JSONResponse({"active": False})
-
-
-@app.post("/api/game/end")
-async def end_game():
-    """結束遊戲"""
-    try:
-        game_manager.end_game()
-        return JSONResponse({"status": "game_ended"})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/practice/start")
-async def start_practice(request: Annotated[dict, Body(...)]):
-    """開始練習"""
-    mode = request.get("mode", "single")
-    pattern = request.get("pattern")
-    
-    try:
-        result = game_manager.start_practice(mode, pattern)
-        return JSONResponse(result)
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.post("/api/practice/record")
-async def record_practice(request: Annotated[dict, Body(...)]):
-    """記錄練習結果"""
-    success = request.get("success", False)
-    
-    try:
-        result = game_manager.record_practice_attempt(success)
-        return JSONResponse(result)
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
-
-
-@app.get("/api/practice/state")
-async def get_practice_state():
-    """獲取練習狀態"""
-    state = game_manager.get_practice_state()
-    if state:
-        return JSONResponse(state)
-    return JSONResponse({"active": False})
-
-
-@app.post("/api/practice/end")
-async def end_practice():
-    """結束練習"""
-    try:
-        game_manager.end_practice()
-        return JSONResponse({"status": "practice_ended"})
-    except Exception as e:
-        return create_error_response(ERR_INTERNAL, str(e))
 
 # ================== Recording APIs ==================
 
